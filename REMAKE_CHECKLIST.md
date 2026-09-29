@@ -60,7 +60,7 @@
 ## Chưa làm trong giai đoạn mock/persistence
 
 - [ ] Kết nối Supabase PostgreSQL staging và chạy migration deploy thật (migration đã có, chưa có credential/database để verify).
-- [~] Supabase Storage private signed upload/download (bucket đã tạo; còn chờ service-role env và live smoke test trên Vercel).
+- [x] Supabase Storage private signed upload/download: bucket, service-role env và live upload/download smoke trên Vercel đã xác nhận.
 - [~] Vercel Queues worker (SDK consumer, retry/idempotency ledger và trigger manifest đã có; live Vercel smoke còn chờ deployment/credential).
 - [~] Backup/disaster recovery runbook (managed Supabase/R2 procedure và restore checklist đã có; restore test thật cần staging credentials).
 - [ ] Tài chính & thu chi.
