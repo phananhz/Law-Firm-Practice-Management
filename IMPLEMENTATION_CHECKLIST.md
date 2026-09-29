@@ -31,7 +31,7 @@
 - [x] Tạo Supabase Storage private bucket `lpms-documents`.
 - [x] Thêm Supabase service-role key vào Vercel API và chạy live storage smoke test.
 - [~] Cấu hình Vercel Environment Variables: Production web/API đã cấu hình; Preview và Development chưa đồng bộ.
-- [~] Tạo migration đầu tiên và chạy qua direct/session connection, không qua request production (migration đã có; Supabase credentials còn thiếu).
+- [x] Tạo migration đầu tiên và triển khai qua Supabase direct/session connection trong Vercel build; 3 migration đã áp dụng thành công.
 - [~] Cấu hình Vercel Queue topic/consumer và smoke test (consumer/trigger/idempotency đã có; live smoke còn chờ deployment).
 
 ## Workstream có thể làm song song ngay
@@ -130,7 +130,7 @@
 - [x] Repeatable `npm run uat:smoke` runner kiểm tra API contracts, queue processed/duplicate và shared-secret boundary trong private environment.
 - [x] `npm run deploy:preflight` kiểm tra cấu hình staging/production mà không in secret.
 - [x] Vercel API serverless entrypoint (`apps/api/api/index.ts`), rewrite NestJS và Production health smoke trả HTTP 200.
-- [!] Supabase migration/seed, restricted-resource UAT và backup restore rehearsal (blocked until PostgreSQL connection credentials are supplied).
+- [~] Supabase migration/seed đã hoàn tất trên Production; restricted-resource UAT và backup restore rehearsal vẫn cần thực hiện.
 - [!] Production deployment approval sau khi critical security, permission và restore gates pass (blocked by the staging gates above).
 
 ## Quy tắc phối hợp bắt buộc

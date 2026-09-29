@@ -41,7 +41,7 @@
 - [x] Khóa PostCSS đã vá cho toàn monorepo và xác nhận Next.js dùng cùng phiên bản sau `npm ci`.
 - [x] Bổ sung biến Supabase public vào `.env.example`; giá trị local thật nằm trong `apps/web/.env.local` và được Git bỏ qua.
 - [x] Xác nhận lại từ cài đặt sạch: production build, typecheck, lint, 52 tests và deployment preflight đều pass.
-- [ ] Thêm `DATABASE_URL` và `DIRECT_URL` thật từ Supabase, chạy migration staging và smoke test API trên Vercel.
+- [x] Cấu hình `DATABASE_URL` và `DIRECT_URL` Supabase Production, chạy toàn bộ Prisma migration trên Vercel và smoke test readiness/login/`/me` bằng tài khoản `SYSTEM_ADMIN`.
 
 ## Đang làm tiếp theo
 
@@ -59,7 +59,7 @@
 
 ## Chưa làm trong giai đoạn mock/persistence
 
-- [ ] Kết nối Supabase PostgreSQL staging và chạy migration deploy thật (migration đã có, chưa có credential/database để verify).
+- [x] Kết nối Supabase PostgreSQL Production và chạy migration deploy thật; seed tài khoản Admin một lần đã hoàn tất và biến seed đã được gỡ khỏi Vercel.
 - [x] Supabase Storage private signed upload/download: bucket, service-role env và live upload/download smoke trên Vercel đã xác nhận.
 - [~] Vercel Queues worker (SDK consumer, retry/idempotency ledger và trigger manifest đã có; live Vercel smoke còn chờ deployment/credential).
 - [~] Backup/disaster recovery runbook (managed Supabase/R2 procedure và restore checklist đã có; restore test thật cần staging credentials).

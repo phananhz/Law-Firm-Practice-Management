@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "buildCommand": "npm run db:migrate:deploy && npm run build",
   "functions": {
     "api/index.ts": {
       "maxDuration": 30
