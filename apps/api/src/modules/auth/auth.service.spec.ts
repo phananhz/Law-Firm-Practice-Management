@@ -1,8 +1,10 @@
 import { JwtService } from '@nestjs/jwt';
 
 jest.mock('otplib', () => ({
-  generateSecret: () => 'TESTSECRET',
-  verifySync: () => ({ valid: true }),
+  authenticator: {
+    generateSecret: () => 'TESTSECRET',
+    verify: () => true,
+  },
 }));
 
 import { AuthService } from './auth.service';

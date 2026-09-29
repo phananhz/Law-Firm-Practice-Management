@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ThrottlerException } from '@nestjs/throttler';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'node:crypto';
-import { generateSecret, verifySync } from 'otplib';
+import { authenticator } from 'otplib';
 import { AUTH_REPOSITORY, type AuthRepository, type AuthUser } from './auth.repository';
 
 type Context = { ipAddress?: string; userAgent?: string };
@@ -56,7 +56,7 @@ export class AuthService {
         )
       : -1;
     const validTotp = Boolean(
-      user?.mfaSecret && verifySync({ token: code, secret: user.mfaSecret }).valid,
+      user?.mfaSecret && authenticator.verify({ token: code, secret: user.mfaSecret }),
     );
     if (!user || claims.purpose !== 'mfa' || (!validTotp && recoveryMatch < 0))
       throw new UnauthorizedException({
@@ -155,7 +155,7 @@ export class AuthService {
   async beginMfa(userId: string) {
     const user = await this.repo.findUser(userId);
     if (!user) throw new UnauthorizedException();
-    const secret = generateSecret();
+    const secret = authenticator.generateSecret();
     user.mfaSecret = secret;
     await this.repo.saveUser(user);
     return {
@@ -165,7 +165,7 @@ export class AuthService {
   }
   async confirmMfa(userId: string, code: string) {
     const user = await this.repo.findUser(userId);
-    if (!user?.mfaSecret || !verifySync({ token: code, secret: user.mfaSecret }).valid)
+    if (!user?.mfaSecret || !authenticator.verify({ token: code, secret: user.mfaSecret }))
       throw new BadRequestException({ code: 'MFA_INVALID_CODE', message: 'Mã MFA không hợp lệ.' });
     user.mfaEnabled = true;
     const codes = Array.from({ length: 8 }, () => randomBytes(5).toString('hex').toUpperCase());
