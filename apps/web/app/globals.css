@@ -1,0 +1,109 @@
+@import 'tailwindcss';
+
+:root {
+  --lpms-blue: #2563eb;
+  --lpms-ink: #0f172a;
+  --lpms-muted: #64748b;
+  --lpms-border: #e2e8f0;
+  --lpms-surface: #ffffff;
+  --lpms-canvas: #f5f7fb;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    background: var(--lpms-canvas);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background: var(--lpms-canvas);
+    color: var(--lpms-ink);
+    font-family: Arial, Helvetica, sans-serif;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background: #dbeafe;
+    color: #1e3a8a;
+  }
+}
+
+@layer components {
+  .brand-mark {
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #38bdf8 100%);
+  }
+
+  .lpms-card {
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    border-radius: 16px;
+    background: var(--lpms-surface);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035);
+  }
+
+  .lpms-card-hover {
+    transition:
+      border-color 160ms ease,
+      box-shadow 160ms ease,
+      transform 160ms ease;
+  }
+
+  .lpms-card-hover:hover {
+    border-color: #bfdbfe;
+    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .lpms-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .lpms-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: #cbd5e1;
+  }
+
+  /* Keep the document detail/upload flows visually consistent with the light workspace shell. */
+  .lpms-legacy-document .bg-slate-800,
+  .lpms-legacy-document .bg-slate-800\/80,
+  .lpms-legacy-document .bg-slate-800\/90,
+  .lpms-legacy-document .bg-slate-900 {
+    background-color: #ffffff !important;
+  }
+
+  .lpms-legacy-document .border-slate-700,
+  .lpms-legacy-document .border-slate-800 {
+    border-color: #e2e8f0 !important;
+  }
+
+  .lpms-legacy-document .text-white,
+  .lpms-legacy-document .text-slate-300 {
+    color: #334155 !important;
+  }
+
+  .lpms-legacy-document .text-slate-400,
+  .lpms-legacy-document .text-slate-500 {
+    color: #64748b !important;
+  }
+
+  .lpms-legacy-document .text-blue-400 {
+    color: #2563eb !important;
+  }
+}

@@ -1,0 +1,8 @@
+node_modules/
+apps/**/dist/
+apps/**/.next/
+coverage/
+docs/
+PROJECT_SPEC.md
+SECURITY.md
+require.md

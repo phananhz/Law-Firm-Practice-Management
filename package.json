@@ -1,0 +1,35 @@
+{
+  "name": "lpms",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@11.6.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,green \"npm run dev --workspace=@lpms/web\" \"npm run dev --workspace=@lpms/api\"",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:validate": "npm run db:validate --workspace=@lpms/api",
+    "db:generate": "npm run db:generate --workspace=@lpms/api",
+    "db:migrate:deploy": "npm run db:migrate:deploy --workspace=@lpms/api",
+    "db:seed": "npm run db:seed --workspace=@lpms/api",
+    "uat:smoke": "node tools/uat-smoke.mjs",
+    "deploy:preflight": "node tools/deploy-preflight.mjs",
+    "format:check": "prettier --check .",
+    "format": "prettier --write ."
+  },
+  "overrides": {
+    "postcss": "^8.5.28"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "concurrently": "^9.2.1",
+    "prettier": "^3.6.2",
+    "typescript-eslint": "^8.44.1",
+    "typescript": "^5.9.2"
+  }
+}

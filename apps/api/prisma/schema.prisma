@@ -1,0 +1,801 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  RESIGNED
+}
+
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+  PLANNED
+}
+
+enum ClientType {
+  INDIVIDUAL
+  ORGANIZATION
+}
+
+enum ClientStatus {
+  NEW
+  IN_REVIEW
+  CONFLICT_CHECK
+  APPROVED
+  ACTIVE
+  REJECTED
+}
+
+enum MatterStatus {
+  INTAKE
+  CONFLICT_CHECK
+  PROPOSAL
+  ACTIVE
+  WAITING_CLIENT
+  WAITING_AUTHORITY
+  ON_HOLD
+  COMPLETED
+  CLOSED
+  ARCHIVED
+}
+
+enum MatterPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ConfidentialityLevel {
+  NORMAL
+  CONFIDENTIAL
+  HIGHLY_CONFIDENTIAL
+  RESTRICTED
+}
+
+enum MatterMemberRole {
+  RESPONSIBLE_PARTNER
+  RESPONSIBLE_LAWYER
+  MEMBER
+  PARALEGAL_ASSISTANT
+  EXTERNAL
+}
+
+enum MatterPartyType {
+  CLIENT
+  OPPOSING_PARTY
+  RELATED_PARTY
+  AUTHORITY
+  COURT
+  ARBITRATOR
+  WITNESS
+  REPRESENTATIVE
+  OTHER
+}
+
+enum ConflictStatus {
+  NO_CONFLICT
+  POTENTIAL_CONFLICT
+  CONFIRMED_CONFLICT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  WAITING
+  REVIEW
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum DeadlineType {
+  FILING
+  GOVERNMENT
+  COURT
+  CONTRACT_EXPIRY
+  LICENSE_EXPIRY
+  RENEWAL
+  CLIENT
+  INTERNAL
+}
+
+enum CalendarEventType {
+  MEETING
+  HEARING
+  APPOINTMENT
+  DEADLINE_EVENT
+}
+
+enum DocumentStatus {
+  DRAFT
+  INTERNAL_REVIEW
+  CLIENT_REVIEW
+  APPROVED
+  SIGNED
+  FINAL
+  ARCHIVED
+}
+
+enum DocumentPermissionType {
+  VIEW
+  DOWNLOAD
+  UPLOAD_VERSION
+  EDIT_METADATA
+  MOVE
+  DELETE
+  SHARE
+}
+
+model User {
+  id                  String                @id @default(uuid()) @db.Uuid
+  email               String                @unique
+  passwordHash        String
+  fullName            String
+  phone               String?
+  employeeCode        String?               @unique
+  startDate           DateTime?             @db.Date
+  departmentId        String?               @db.Uuid
+  positionId          String?               @db.Uuid
+  managerId           String?               @db.Uuid
+  status              UserStatus            @default(ACTIVE)
+  mfaEnabled          Boolean               @default(false)
+  mfaSecretEncrypted  String?
+  recoveryCodeHashes  Json?
+  failedLoginAttempts Int                   @default(0)
+  lockedUntil         DateTime?             @db.Timestamptz(6)
+  createdAt           DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt           DateTime?             @db.Timestamptz(6)
+  roles               UserRole[]
+  refreshSessions     RefreshSession[]
+  passwordResetTokens PasswordResetToken[]
+  auditLogs           AuditLog[]
+  department          Department?           @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  position            Position?             @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  manager             User?                 @relation("UserManager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports             User[]                @relation("UserManager")
+  managedDepartments  Department[]          @relation("DepartmentManager")
+  matterMemberships   MatterMember[]
+  assignedTasks       Task[]                @relation("TaskAssignee")
+  reviewedTasks       Task[]                @relation("TaskReviewer")
+  completedTasks      Task[]                @relation("TaskCompletedBy")
+  responsibleMatters  Matter[]              @relation("MatterResponsiblePartner")
+  lawyerMatters       Matter[]              @relation("MatterResponsibleLawyer")
+  changedStatuses     MatterStatusHistory[]
+  requestedConflicts  ConflictCheck[]       @relation("ConflictRequestedBy")
+  reviewedConflicts   ConflictCheck[]       @relation("ConflictReviewedBy")
+  organizedEvents     CalendarEvent[]       @relation("EventOrganizer")
+  uploadedVersions    DocumentVersion[]     @relation("VersionUploader")
+  documentPermissions DocumentPermission[]
+  notifications       Notification[]
+  taskComments        TaskComment[]
+
+  @@map("users")
+}
+
+model Role {
+  id                  String               @id @default(uuid()) @db.Uuid
+  name                String               @unique
+  description         String?
+  isSystem            Boolean              @default(false)
+  createdAt           DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
+  users               UserRole[]
+  permissions         RolePermission[]
+  documentPermissions DocumentPermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique
+  module      String
+  description String?
+  createdAt   DateTime         @default(now()) @db.Timestamptz(6)
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId String @db.Uuid
+  roleId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String     @db.Uuid
+  permissionId String     @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model RefreshSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique
+  userAgent String?
+  ipAddress String?
+  isRevoked Boolean  @default(false)
+  expiresAt DateTime @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, isRevoked])
+  @@map("refresh_sessions")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(6)
+  usedAt    DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String?  @db.Uuid
+  action       String
+  resourceType String
+  resourceId   String?
+  ipAddress    String?
+  userAgent    String?
+  requestId    String?
+  metadata     Json?
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+model Branch {
+  id          String       @id @default(uuid()) @db.Uuid
+  code        String       @unique
+  name        String
+  city        String
+  address     String
+  status      BranchStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(6)
+  departments Department[]
+
+  @@map("branches")
+}
+
+model Department {
+  id          String   @id @default(uuid()) @db.Uuid
+  branchId    String?  @db.Uuid
+  managerId   String?  @db.Uuid
+  code        String   @unique
+  name        String
+  description String?
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  manager     User?    @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  employees   User[]
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([branchId])
+  @@index([managerId])
+  @@map("departments")
+}
+
+model Position {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  title     String
+  level     Int
+  employees User[]
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("positions")
+}
+
+model Client {
+  id                  String           @id @default(uuid()) @db.Uuid
+  clientCode          String           @unique
+  type                ClientType
+  status              ClientStatus     @default(NEW)
+  displayName         String
+  email               String?
+  phone               String?
+  address             String?
+  nationality         String?
+  idNumber            String?
+  occupation          String?
+  taxCode             String?
+  enterpriseNumber    String?
+  legalRepresentative String?
+  website             String?
+  industry            String?
+  notes               String?
+  createdById         String?          @db.Uuid
+  updatedById         String?          @db.Uuid
+  deletedById         String?          @db.Uuid
+  createdAt           DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime         @updatedAt @db.Timestamptz(6)
+  deletedAt           DateTime?        @db.Timestamptz(6)
+  contacts            ClientContact[]
+  relationsFrom       ClientRelation[] @relation("ClientRelationSource")
+  relationsTo         ClientRelation[] @relation("ClientRelationTarget")
+  matters             Matter[]
+  conflictChecks      ConflictCheck[]  @relation("ClientConflictChecks")
+  parties             MatterParty[]
+
+  @@index([status, createdAt])
+  @@index([displayName])
+  @@map("clients")
+}
+
+model Contact {
+  id            String          @id @default(uuid()) @db.Uuid
+  fullName      String
+  email         String?
+  phone         String?
+  position      String?
+  idNumber      String?
+  notes         String?
+  createdAt     DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(6)
+  deletedAt     DateTime?       @db.Timestamptz(6)
+  clients       ClientContact[]
+  matterParties MatterParty[]
+
+  @@map("contacts")
+}
+
+model ClientContact {
+  clientId     String  @db.Uuid
+  contactId    String  @db.Uuid
+  isPrimary    Boolean @default(false)
+  relationship String?
+  client       Client  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  contact      Contact @relation(fields: [contactId], references: [id], onDelete: Restrict)
+
+  @@id([clientId, contactId])
+  @@map("client_contacts")
+}
+
+model ClientRelation {
+  id             String   @id @default(uuid()) @db.Uuid
+  sourceClientId String   @db.Uuid
+  targetClientId String?  @db.Uuid
+  targetName     String?
+  relationType   String
+  notes          String?
+  sourceClient   Client   @relation("ClientRelationSource", fields: [sourceClientId], references: [id], onDelete: Restrict)
+  targetClient   Client?  @relation("ClientRelationTarget", fields: [targetClientId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([sourceClientId])
+  @@index([targetClientId])
+  @@map("client_relations")
+}
+
+model PracticeArea {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  matters     Matter[]
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("practice_areas")
+}
+
+model Matter {
+  id                   String                @id @default(uuid()) @db.Uuid
+  matterCode           String                @unique
+  name                 String
+  description          String?
+  clientId             String                @db.Uuid
+  practiceAreaId       String?               @db.Uuid
+  responsiblePartnerId String?               @db.Uuid
+  responsibleLawyerId  String?               @db.Uuid
+  matterType           String?
+  status               MatterStatus          @default(INTAKE)
+  priority             MatterPriority        @default(NORMAL)
+  confidentialityLevel ConfidentialityLevel  @default(NORMAL)
+  openDate             DateTime?             @db.Date
+  expectedCloseDate    DateTime?             @db.Date
+  closeDate            DateTime?             @db.Date
+  createdById          String?               @db.Uuid
+  updatedById          String?               @db.Uuid
+  deletedById          String?               @db.Uuid
+  createdAt            DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt            DateTime?             @db.Timestamptz(6)
+  client               Client                @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  practiceArea         PracticeArea?         @relation(fields: [practiceAreaId], references: [id], onDelete: SetNull)
+  responsiblePartner   User?                 @relation("MatterResponsiblePartner", fields: [responsiblePartnerId], references: [id], onDelete: SetNull)
+  responsibleLawyer    User?                 @relation("MatterResponsibleLawyer", fields: [responsibleLawyerId], references: [id], onDelete: SetNull)
+  members              MatterMember[]
+  parties              MatterParty[]
+  statusHistory        MatterStatusHistory[]
+  conflictChecks       ConflictCheck[]
+  tasks                Task[]
+  deadlines            Deadline[]
+  calendarEvents       CalendarEvent[]
+  folders              Folder[]
+  documents            Document[]
+  notes                Note[]
+
+  @@index([clientId, status])
+  @@index([responsiblePartnerId])
+  @@index([responsibleLawyerId])
+  @@map("matters")
+}
+
+model MatterMember {
+  id           String           @id @default(uuid()) @db.Uuid
+  matterId     String           @db.Uuid
+  userId       String           @db.Uuid
+  roleInMatter MatterMemberRole
+  canEdit      Boolean          @default(false)
+  addedAt      DateTime         @default(now()) @db.Timestamptz(6)
+  addedById    String?          @db.Uuid
+  matter       Matter           @relation(fields: [matterId], references: [id], onDelete: Restrict)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([matterId, userId])
+  @@index([userId])
+  @@map("matter_members")
+}
+
+model MatterParty {
+  id        String          @id @default(uuid()) @db.Uuid
+  matterId  String          @db.Uuid
+  partyType MatterPartyType
+  name      String
+  clientId  String?         @db.Uuid
+  contactId String?         @db.Uuid
+  details   Json?
+  matter    Matter          @relation(fields: [matterId], references: [id], onDelete: Restrict)
+  client    Client?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  contact   Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  createdAt DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime        @updatedAt @db.Timestamptz(6)
+
+  @@index([matterId])
+  @@map("matter_parties")
+}
+
+model MatterStatusHistory {
+  id          String        @id @default(uuid()) @db.Uuid
+  matterId    String        @db.Uuid
+  fromStatus  MatterStatus?
+  toStatus    MatterStatus
+  reason      String?
+  changedById String?       @db.Uuid
+  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
+  matter      Matter        @relation(fields: [matterId], references: [id], onDelete: Restrict)
+  changedBy   User?         @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([matterId, createdAt])
+  @@map("matter_status_history")
+}
+
+model ConflictCheck {
+  id            String           @id @default(uuid()) @db.Uuid
+  matterId      String?          @db.Uuid
+  clientId      String?          @db.Uuid
+  requestedById String           @db.Uuid
+  searchTerms   String[]
+  status        ConflictStatus   @default(NO_CONFLICT)
+  decisionNotes String?
+  reviewedById  String?          @db.Uuid
+  reviewedAt    DateTime?        @db.Timestamptz(6)
+  createdAt     DateTime         @default(now()) @db.Timestamptz(6)
+  matter        Matter?          @relation(fields: [matterId], references: [id], onDelete: SetNull)
+  client        Client?          @relation("ClientConflictChecks", fields: [clientId], references: [id], onDelete: SetNull)
+  requestedBy   User             @relation("ConflictRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  reviewedBy    User?            @relation("ConflictReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  results       ConflictResult[]
+
+  @@index([matterId, status])
+  @@index([clientId, status])
+  @@map("conflict_checks")
+}
+
+model ConflictResult {
+  id                String        @id @default(uuid()) @db.Uuid
+  conflictCheckId   String        @db.Uuid
+  matchedEntityType String
+  matchedEntityId   String?
+  matchedName       String
+  similarityScore   Decimal?      @db.Decimal(5, 2)
+  notes             String?
+  conflictCheck     ConflictCheck @relation(fields: [conflictCheckId], references: [id], onDelete: Restrict)
+
+  @@index([conflictCheckId])
+  @@map("conflict_results")
+}
+
+model Task {
+  id               String           @id @default(uuid()) @db.Uuid
+  matterId         String           @db.Uuid
+  title            String
+  description      String?
+  assigneeId       String?          @db.Uuid
+  reviewerId       String?          @db.Uuid
+  status           TaskStatus       @default(TODO)
+  priority         TaskPriority     @default(NORMAL)
+  startDate        DateTime?        @db.Date
+  dueDate          DateTime?        @db.Date
+  estimatedMinutes Int?
+  actualMinutes    Int?
+  completedAt      DateTime?        @db.Timestamptz(6)
+  completedById    String?          @db.Uuid
+  createdById      String?          @db.Uuid
+  updatedById      String?          @db.Uuid
+  deletedAt        DateTime?        @db.Timestamptz(6)
+  createdAt        DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
+  matter           Matter           @relation(fields: [matterId], references: [id], onDelete: Restrict)
+  assignee         User?            @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  reviewer         User?            @relation("TaskReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  completedBy      User?            @relation("TaskCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  checklists       TaskChecklist[]
+  comments         TaskComment[]
+  dependencies     TaskDependency[] @relation("TaskDependencies")
+  dependedOnBy     TaskDependency[] @relation("TaskDependents")
+
+  @@index([matterId, status])
+  @@index([assigneeId, dueDate])
+  @@map("tasks")
+}
+
+model TaskComment {
+  id        String    @id @default(uuid()) @db.Uuid
+  taskId    String    @db.Uuid
+  userId    String    @db.Uuid
+  content   String
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([taskId, createdAt])
+  @@map("task_comments")
+}
+
+model TaskChecklist {
+  id          String  @id @default(uuid()) @db.Uuid
+  taskId      String  @db.Uuid
+  title       String
+  isCompleted Boolean @default(false)
+  position    Int     @default(0)
+  task        Task    @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  @@index([taskId, position])
+  @@map("task_checklists")
+}
+
+model TaskDependency {
+  taskId          String @db.Uuid
+  dependsOnTaskId String @db.Uuid
+  task            Task   @relation("TaskDependencies", fields: [taskId], references: [id], onDelete: Restrict)
+  dependsOnTask   Task   @relation("TaskDependents", fields: [dependsOnTaskId], references: [id], onDelete: Restrict)
+
+  @@id([taskId, dependsOnTaskId])
+  @@map("task_dependencies")
+}
+
+model Deadline {
+  id                  String       @id @default(uuid()) @db.Uuid
+  matterId            String       @db.Uuid
+  title               String
+  description         String?
+  deadlineType        DeadlineType
+  dueDate             DateTime     @db.Date
+  dueTime             String?
+  reminderDays        Int[]
+  isCompleted         Boolean      @default(false)
+  responsiblePersonId String?      @db.Uuid
+  createdById         String?      @db.Uuid
+  updatedById         String?      @db.Uuid
+  createdAt           DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime     @updatedAt @db.Timestamptz(6)
+  matter              Matter       @relation(fields: [matterId], references: [id], onDelete: Restrict)
+
+  @@index([matterId, dueDate])
+  @@index([responsiblePersonId, dueDate])
+  @@map("deadlines")
+}
+
+model CalendarEvent {
+  id          String            @id @default(uuid()) @db.Uuid
+  matterId    String?           @db.Uuid
+  title       String
+  eventType   CalendarEventType
+  startTime   DateTime          @db.Timestamptz(6)
+  endTime     DateTime          @db.Timestamptz(6)
+  location    String?
+  organizerId String            @db.Uuid
+  createdAt   DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(6)
+  matter      Matter?           @relation(fields: [matterId], references: [id], onDelete: SetNull)
+  organizer   User              @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
+
+  @@index([matterId, startTime])
+  @@index([organizerId, startTime])
+  @@map("calendar_events")
+}
+
+model Folder {
+  id               String     @id @default(uuid()) @db.Uuid
+  matterId         String     @db.Uuid
+  parentId         String?    @db.Uuid
+  name             String
+  systemFolderType String?
+  createdById      String?    @db.Uuid
+  updatedById      String?    @db.Uuid
+  createdAt        DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime   @updatedAt @db.Timestamptz(6)
+  deletedAt        DateTime?
+  matter           Matter     @relation(fields: [matterId], references: [id], onDelete: Restrict)
+  parent           Folder?    @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children         Folder[]   @relation("FolderTree")
+  documents        Document[]
+
+  @@unique([matterId, parentId, name])
+  @@index([matterId])
+  @@map("folders")
+}
+
+model Document {
+  id                 String               @id @default(uuid()) @db.Uuid
+  matterId           String               @db.Uuid
+  folderId           String               @db.Uuid
+  title              String
+  documentType       String?
+  status             DocumentStatus       @default(DRAFT)
+  isRestricted       Boolean              @default(false)
+  isSensitive        Boolean              @default(false)
+  watermarkEnabled   Boolean              @default(false)
+  downloadRestricted Boolean              @default(false)
+  createdById        String?              @db.Uuid
+  updatedById        String?              @db.Uuid
+  deletedById        String?              @db.Uuid
+  createdAt          DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime             @updatedAt @db.Timestamptz(6)
+  deletedAt          DateTime?            @db.Timestamptz(6)
+  matter             Matter               @relation(fields: [matterId], references: [id], onDelete: Restrict)
+  folder             Folder               @relation(fields: [folderId], references: [id], onDelete: Restrict)
+  versions           DocumentVersion[]
+  permissions        DocumentPermission[]
+
+  @@index([matterId, status])
+  @@index([folderId])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id               String   @id @default(uuid()) @db.Uuid
+  documentId       String   @db.Uuid
+  versionNumber    Int
+  storageKey       String
+  fileSize         BigInt
+  mimeType         String
+  fileHash         String
+  originalFileName String
+  comment          String?
+  uploadedById     String   @db.Uuid
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  document         Document @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  uploadedBy       User     @relation("VersionUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId, createdAt])
+  @@map("document_versions")
+}
+
+model DocumentPermission {
+  id         String                 @id @default(uuid()) @db.Uuid
+  documentId String                 @db.Uuid
+  userId     String?                @db.Uuid
+  roleId     String?                @db.Uuid
+  permission DocumentPermissionType
+  document   Document               @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  user       User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  role       Role?                  @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  @@index([documentId, permission])
+  @@index([userId, documentId])
+  @@index([roleId, documentId])
+  @@map("document_permissions")
+}
+
+model Note {
+  id           String    @id @default(uuid()) @db.Uuid
+  matterId     String    @db.Uuid
+  authorId     String?   @db.Uuid
+  content      String
+  isRestricted Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt    DateTime?
+  matter       Matter    @relation(fields: [matterId], references: [id], onDelete: Restrict)
+
+  @@index([matterId, createdAt])
+  @@map("notes")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  title     String
+  message   String
+  type      String
+  link      String?
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
+}
+
+model QueueDelivery {
+  id          String    @id @default(uuid()) @db.Uuid
+  messageId   String    @unique
+  topic       String
+  eventType   String
+  payload     Json
+  status      String    @default("PROCESSING")
+  attempts    Int       @default(1)
+  processedAt DateTime? @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([topic, status])
+  @@index([createdAt])
+  @@map("queue_deliveries")
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  value       Json
+  description String?
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  updatedById String?  @db.Uuid
+
+  @@map("system_settings")
+}
