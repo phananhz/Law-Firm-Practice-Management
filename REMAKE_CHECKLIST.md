@@ -34,6 +34,15 @@
 - [x] Xác nhận runtime sau khi làm sạch cache `.next`: các route chính, `/deadlines/dl-1` và `/access-denied` trả HTTP 200.
 - [x] Chạy lại `format:check`, lint, typecheck và 52 tests sau thay đổi.
 
+## Hoàn thành bổ sung — ổn định triển khai Vercel
+
+- [x] Khai báo đúng dependency workspace `@lpms/types` cho cả web và API để Vercel resolve package nội bộ khi cài sạch.
+- [x] Buộc API chạy `prisma generate` trước build, không còn phụ thuộc Prisma Client còn sót trong cache local.
+- [x] Khóa PostCSS đã vá cho toàn monorepo và xác nhận Next.js dùng cùng phiên bản sau `npm ci`.
+- [x] Bổ sung biến Supabase public vào `.env.example`; giá trị local thật nằm trong `apps/web/.env.local` và được Git bỏ qua.
+- [x] Xác nhận lại từ cài đặt sạch: production build, typecheck, lint, 52 tests và deployment preflight đều pass.
+- [ ] Thêm `DATABASE_URL` và `DIRECT_URL` thật từ Supabase, chạy migration staging và smoke test API trên Vercel.
+
 ## Đang làm tiếp theo
 
 - [~] Tách API client monolith thành client theo domain (đã có transport export, platform client và façade domain; phần legacy còn cần loại bỏ sau khi migrate toàn bộ import).
