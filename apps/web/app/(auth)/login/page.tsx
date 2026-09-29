@@ -18,7 +18,6 @@ import { useToast } from '@/components/ui/toast';
 const loginSchema = z.object({
   email: z.string().min(1, 'Vui lòng nhập email').email('Email không đúng định dạng'),
   password: z.string().min(1, 'Vui lòng nhập mật khẩu'),
-  rememberMe: z.boolean().optional(),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -39,14 +38,13 @@ export default function LoginPage() {
     defaultValues: {
       email: 'director@lpms.vn',
       password: '',
-      rememberMe: false,
     },
   });
 
   const onSubmit = async (data: LoginFormData) => {
     setServerError(null);
     try {
-      const res = await authApi.login(data);
+      const res = await authApi.login({ email: data.email, password: data.password });
 
       if (res.requiresMfa) {
         setMfaPending({
@@ -117,17 +115,6 @@ export default function LoginPage() {
               error={errors.password?.message}
               {...register('password')}
             />
-          </div>
-
-          <div className="flex items-center justify-between pt-1">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                {...register('rememberMe')}
-              />
-              <span className="text-xs text-slate-600">Ghi nhớ thiết bị này</span>
-            </label>
           </div>
 
           <Button type="submit" className="w-full mt-2" size="lg" isLoading={isSubmitting}>
