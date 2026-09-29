@@ -42,9 +42,9 @@
 - **Backend:** Node.js LTS, NestJS, TypeScript, REST API (`/api/v1`).
 - **Database & ORM:** Supabase PostgreSQL 16+, Prisma ORM.
 - **Queue:** Vercel Queues (durable, retryable, at-least-once delivery); không dùng Redis/BullMQ ở production V1.
-- **File Storage:** Cloudflare R2 qua S3-compatible API; bucket luôn private.
+- **File Storage:** Supabase Storage; bucket luôn private, R2 là adapter thay thế khi cần mở rộng.
 - **Runtime & Deployment:** Vercel Node.js serverless functions cho Next.js và NestJS API.
-- **Edge & Security:** Cloudflare DNS, Turnstile và R2; WAF được cấu hình sau giai đoạn xác minh production.
+- **Edge & Security:** Cloudflare DNS và Turnstile; WAF được cấu hình sau giai đoạn xác minh production.
 
 ---
 

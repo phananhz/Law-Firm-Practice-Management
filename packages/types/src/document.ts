@@ -102,6 +102,19 @@ export interface SignedUrlResponse {
   fileName: string;
 }
 
+export type StorageProvider = 'mock' | 'r2' | 'supabase';
+
+export interface SignedUploadUrlResponse {
+  documentId: string;
+  storageKey: string;
+  uploadUrl: string;
+  method: 'PUT';
+  requiredHeaders?: Record<string, string>;
+  expiresAt: string;
+  expiresInSeconds: number;
+  storageProvider: StorageProvider;
+}
+
 export interface DocumentFilterParams {
   matterId?: string;
   folderId?: string;

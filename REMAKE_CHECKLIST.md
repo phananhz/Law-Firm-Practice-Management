@@ -48,7 +48,7 @@
 - [~] Tách API client monolith thành client theo domain (đã có transport export, platform client và façade domain; phần legacy còn cần loại bỏ sau khi migrate toàn bộ import).
 - [x] Persistence foundation: Prisma schema có `DIRECT_URL`, migration auth/RBAC/session/audit + entity MVP và seed permissions idempotent.
 - [x] API persistence mode có opt-in rõ ràng (`PERSISTENCE_MODE=mock|prisma`) và readiness endpoint không làm hỏng mock runtime.
-- [x] Storage boundary: mock/R2 mode, AWS SigV4 presigned GET/PUT contract và fail-closed credential check.
+- [x] Storage boundary: mock/Supabase/R2 mode, signed GET/PUT contract và fail-closed credential check.
 - [x] Nối repository mock sang Prisma repository theo từng module (Auth, Clients, Organization, Operations và Platform đã có adapter/mode selector; staging e2e còn ở mục triển khai).
 - [x] Khi ở `api` mode, không fallback mock im lặng khi backend lỗi.
 - [x] Hoàn thiện màn hình chi tiết và form tạo/sửa cho Khách hàng, Conflict, Matter, Task, Deadline và Documents.
@@ -60,7 +60,7 @@
 ## Chưa làm trong giai đoạn mock/persistence
 
 - [ ] Kết nối Supabase PostgreSQL staging và chạy migration deploy thật (migration đã có, chưa có credential/database để verify).
-- [~] Cloudflare R2 signed upload/download (SigV4 contract đã có; live bucket/credential smoke test chưa chạy).
+- [~] Supabase Storage private signed upload/download (bucket đã tạo; còn chờ service-role env và live smoke test trên Vercel).
 - [~] Vercel Queues worker (SDK consumer, retry/idempotency ledger và trigger manifest đã có; live Vercel smoke còn chờ deployment/credential).
 - [~] Backup/disaster recovery runbook (managed Supabase/R2 procedure và restore checklist đã có; restore test thật cần staging credentials).
 - [ ] Tài chính & thu chi.

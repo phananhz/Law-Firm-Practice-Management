@@ -33,7 +33,7 @@ graph TD
     API --> AuditMod
     API --> NotifyMod
 
-    DocMod --> R2[(Cloudflare R2: Private Object Storage)]
+    DocMod --> Storage[(Supabase Storage: Private Bucket)]
     API --> PG[(Supabase PostgreSQL)]
     API --> Queue[Vercel Queues]
     Queue --> Worker[Vercel Queue Consumers]
@@ -56,7 +56,7 @@ lpms/
 │   └── ui/                     # Shared UI components library
 ├── infrastructure/
 │   ├── vercel/                 # Vercel functions, queue và deployment config
-│   ├── cloudflare/             # R2, Turnstile và edge configuration
+│   ├── cloudflare/             # Turnstile, DNS và edge configuration
 │   └── scripts/                # Database backup & restore automation scripts
 ├── docs/
 │   ├── architecture/           # Kiến trúc hệ thống và luồng dữ liệu

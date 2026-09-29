@@ -2,7 +2,7 @@
 
 ## 1. Trạng thái
 
-**ACCEPTED**
+**SUPERSEDED IN PART BY ADR-007**
 
 ## 2. Bối cảnh
 
@@ -12,7 +12,7 @@ LPMS cần deployment managed, triển khai nhanh, không vận hành server, Re
 
 1. Vercel host Next.js web, NestJS API Node.js serverless functions và Vercel Queues.
 2. Supabase PostgreSQL là database production; Prisma tiếp tục là single source of truth cho schema/migration.
-3. Cloudflare R2 là object storage private; Cloudflare quản lý DNS, Turnstile và WAF theo rollout.
+3. Cloudflare R2 từng được chọn làm object storage private; ADR-007 thay thế phần này bằng Supabase Storage. Cloudflare vẫn quản lý DNS, Turnstile và WAF theo rollout.
 4. NestJS tiếp tục là nguồn xác thực/ủy quyền duy nhất. Không dùng Supabase Auth cho internal application users.
 5. Redis/BullMQ, Nginx và Docker Compose không nằm trong production architecture V1. Docker Compose chỉ có thể dùng làm local-dev tùy chọn.
 

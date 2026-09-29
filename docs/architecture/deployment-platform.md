@@ -5,20 +5,20 @@
 LPMS sử dụng ba dịch vụ managed:
 
 - **Vercel:** deploy Next.js web, NestJS API Node.js serverless functions và Vercel Queues.
-- **Supabase:** PostgreSQL managed; Prisma là lớp truy cập dữ liệu duy nhất của backend.
-- **Cloudflare:** DNS, Turnstile, Cloudflare R2 và WAF khi production đã được xác minh.
+- **Supabase:** PostgreSQL managed và private Storage; Prisma là lớp truy cập dữ liệu PostgreSQL duy nhất của backend.
+- **Cloudflare:** DNS, Turnstile và WAF khi production đã được xác minh; R2 chỉ là storage adapter tùy chọn.
 
 ## Ranh giới trách nhiệm
 
 ```text
 Browser -> Cloudflare DNS/Turnstile -> Vercel Web/API
                                       -> Supabase PostgreSQL
-                                      -> Cloudflare R2
+                                      -> Supabase Storage
                                       -> Vercel Queues consumers
 ```
 
 - Supabase Auth không được bật cho internal users khi NestJS vẫn là nguồn xác thực, MFA và session duy nhất.
-- Cloudflare R2 bucket phải private. API xác thực quyền, ghi audit, rồi mới cấp presigned upload/download URL ngắn hạn.
+- Supabase Storage bucket phải private. API xác thực quyền, ghi audit, rồi mới cấp signed upload/download URL ngắn hạn; service-role key chỉ tồn tại ở API.
 - Vercel Functions phải stateless. Không lưu session, file, queue state hoặc Prisma client state nghiệp vụ trong RAM.
 - Queue consumer có delivery at-least-once; mỗi handler phải idempotent và lưu trạng thái xử lý trong PostgreSQL khi cần.
 
@@ -42,7 +42,7 @@ Browser -> Cloudflare DNS/Turnstile -> Vercel Web/API
 ## Secrets và môi trường
 
 - Secret chỉ nằm trong Vercel Environment Variables theo `development`, `preview/staging`, `production`.
-- `NEXT_PUBLIC_*` chỉ dành cho giá trị công khai; không đưa service-role key, DB password, R2 secret hay JWT secret vào frontend.
+- `NEXT_PUBLIC_*` chỉ dành cho giá trị công khai; không đưa Supabase service-role key, DB password, R2 secret hay JWT secret vào frontend.
 - Prisma mode phải có `AUTH_ENCRYPTION_KEY` riêng (không dùng lại JWT secret) để giải mã secret MFA trong repository Auth.
 - Cloudflare DNS ban đầu dùng DNS-only cho domain Vercel; chỉ bật proxy/WAF sau khi test TLS, cookie HttpOnly và API streaming.
 
@@ -55,7 +55,7 @@ Browser -> Cloudflare DNS/Turnstile -> Vercel Web/API
   reuses `createApp()` from `src/main.ts`. `VERCEL=1` prevents the module from
   calling `listen()` during a function cold start.
 - Both projects must receive their own environment variables in Vercel; the
-  API project must never expose database, R2 or queue secrets as
+  API project must never expose database, storage or queue secrets as
   `NEXT_PUBLIC_*` values.
 - Run `npm run deploy:preflight` from a private staging/production shell
   before migrations or deployment. The checker validates only names, formats,

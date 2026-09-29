@@ -22,11 +22,7 @@ function DocumentUploadContent() {
 
   // File upload state
   const [dragActive, setDragActive] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<{
-    name: string;
-    size: number;
-    type: string;
-  } | null>(null);
+  const [selectedFile, setSelectedFile] = useState<{ file: File; mimeType: string } | null>(null);
   const [fileValidationError, setFileValidationError] = useState<string | null>(null);
 
   // Metadata form
@@ -85,25 +81,24 @@ function DocumentUploadContent() {
 
   // Allowed extensions & size limit (50MB)
   const MAX_FILE_SIZE = 50 * 1024 * 1024;
-  const ALLOWED_EXTS = [
-    '.pdf',
-    '.docx',
-    '.doc',
-    '.xlsx',
-    '.xls',
-    '.pptx',
-    '.msg',
-    '.eml',
-    '.png',
-    '.jpg',
-  ];
+  const MIME_BY_EXTENSION: Record<string, string> = {
+    '.pdf': 'application/pdf',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+  };
 
   const validateAndSetFile = (file: File) => {
     setFileValidationError(null);
     const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-    if (!ALLOWED_EXTS.includes(ext)) {
+    const mimeType = MIME_BY_EXTENSION[ext];
+    if (!mimeType) {
       setFileValidationError(
-        `Định dạng tệp không được hỗ trợ (${ext}). Chỉ chấp nhận PDF, Word, Excel, PPTX, MSG, EML, Ảnh.`,
+        `Định dạng tệp không được hỗ trợ (${ext}). Chỉ chấp nhận PDF, Word, Excel, JPG và PNG.`,
       );
       return;
     }
@@ -112,11 +107,7 @@ function DocumentUploadContent() {
       return;
     }
 
-    setSelectedFile({
-      name: file.name,
-      size: file.size,
-      type: file.type || 'application/octet-stream',
-    });
+    setSelectedFile({ file, mimeType });
 
     if (!title) {
       // Auto fill title without extension
@@ -158,19 +149,7 @@ function DocumentUploadContent() {
 
     setIsUploading(true);
     setUploadProgress(15);
-    setUploadStage('Đang kiểm tra MIME type & Magic Bytes hợp lệ...');
-
-    await new Promise((r) => setTimeout(r, 600));
-    setUploadProgress(40);
-    setUploadStage('Đang quét mã độc & virus (ClamAV Enterprise)...');
-
-    await new Promise((r) => setTimeout(r, 700));
-    setUploadProgress(70);
-    setUploadStage('Đang sinh UUID Storage Key & mã hóa S3 SSE-KMS...');
-
-    await new Promise((r) => setTimeout(r, 600));
-    setUploadProgress(90);
-    setUploadStage('Đang tạo chỉ mục phiên bản v1 & ghi nhận Audit Log...');
+    setUploadStage('Đang tạo bản ghi tài liệu...');
 
     try {
       const createdDoc = await documentApi.uploadDocument({
@@ -178,9 +157,9 @@ function DocumentUploadContent() {
         folderId: selectedFolderId,
         title: title.trim(),
         description: description.trim() || undefined,
-        fileName: selectedFile.name,
-        fileSize: selectedFile.size,
-        mimeType: selectedFile.type,
+        fileName: selectedFile.file.name,
+        fileSize: selectedFile.file.size,
+        mimeType: selectedFile.mimeType,
         comment: comment.trim() || undefined,
         isSensitive,
         watermarkEnabled,
@@ -188,6 +167,26 @@ function DocumentUploadContent() {
         partnerOnly,
         status,
       });
+
+      setUploadProgress(45);
+      setUploadStage('Đang yêu cầu liên kết tải lên bảo mật...');
+      const signedUpload = await documentApi.requestSignedUploadUrl(
+        createdDoc.id,
+        selectedFile.mimeType,
+      );
+
+      if (signedUpload.storageProvider !== 'mock') {
+        setUploadProgress(70);
+        setUploadStage('Đang tải tệp lên kho lưu trữ riêng tư...');
+        const uploadResponse = await fetch(signedUpload.uploadUrl, {
+          method: signedUpload.method,
+          headers: signedUpload.requiredHeaders,
+          body: selectedFile.file,
+        });
+        if (!uploadResponse.ok) {
+          throw new Error(`Storage upload failed with status ${uploadResponse.status}`);
+        }
+      }
 
       setUploadProgress(100);
       setUploadStage('Tải lên hoàn tất thành công!');
@@ -290,25 +289,20 @@ function DocumentUploadContent() {
               id="file-upload-input"
               className="hidden"
               onChange={handleFileInput}
-              accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.msg,.eml,.png,.jpg"
+              accept=".pdf,.docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg"
             />
 
             {selectedFile ? (
               <div className="space-y-2">
                 <span className="text-4xl block">📄</span>
-                <p className="text-sm font-semibold text-white">{selectedFile.name}</p>
+                <p className="text-sm font-semibold text-white">{selectedFile.file.name}</p>
                 <p className="text-xs text-slate-400">
-                  Dung lượng: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • MIME:{' '}
-                  {selectedFile.type || 'unknown'}
+                  Dung lượng: {(selectedFile.file.size / (1024 * 1024)).toFixed(2)} MB • MIME:{' '}
+                  {selectedFile.mimeType}
                 </p>
-                <div className="flex justify-center gap-2 pt-2">
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1">
-                    <span>✓</span> Magic Bytes Hợp lệ
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 flex items-center gap-1">
-                    <span>🛡️</span> Quét Antivirus Sạch
-                  </span>
-                </div>
+                <p className="text-[10px] text-emerald-300 pt-2">
+                  ✓ Định dạng và dung lượng hợp lệ
+                </p>
                 <div className="pt-2">
                   <label
                     htmlFor="file-upload-input"
@@ -326,7 +320,7 @@ function DocumentUploadContent() {
                   <span className="text-blue-400 hover:underline">duyệt tệp từ máy tính</span>
                 </p>
                 <p className="text-xs text-slate-500">
-                  Hỗ trợ: PDF, DOCX, XLSX, PPTX, MSG, EML, Ảnh • Tối đa 50MB mỗi tệp
+                  Hỗ trợ: PDF, Word, Excel, JPG, PNG • Tối đa 50 MB mỗi tệp
                 </p>
               </label>
             )}
@@ -514,7 +508,7 @@ function DocumentUploadContent() {
             variant="primary"
             disabled={!selectedFile || !selectedMatterId || !selectedFolderId || isUploading}
           >
-            {isUploading ? 'Đang mã hóa & tải lên...' : 'Bắt đầu Tải lên & Lưu trữ S3'}
+            {isUploading ? 'Đang tải lên...' : 'Tải lên và lưu tài liệu'}
           </Button>
         </div>
       </form>
@@ -528,7 +522,7 @@ export default function DocumentUploadPage() {
       fallback={
         <div className="py-16 text-center text-xs text-slate-400">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-2" />
-          <p>Đang chuẩn bị giao diện tải lên S3 Vault...</p>
+          <p>Đang chuẩn bị giao diện tải tài liệu...</p>
         </div>
       }
     >

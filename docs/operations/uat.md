@@ -61,11 +61,11 @@ Before marking UAT complete, a private staging shell must provide:
 1. Supabase `DATABASE_URL` (pooler) and `DIRECT_URL` (migration connection).
 2. `PERSISTENCE_MODE=prisma`, `AUTH_ENCRYPTION_KEY` and a one-time seed admin
    password (`SEED_ADMIN_*`).
-3. Private Cloudflare R2 bucket credentials and `STORAGE_MODE=r2`.
+3. Private Supabase Storage bucket credentials and `STORAGE_MODE=supabase`.
 4. Vercel Queue deployment URL/secret, `CRON_SECRET` and deployed trigger/cron.
 
 Run `prisma migrate deploy`, `prisma db seed`, verify `/health/ready`, then
 repeat the smoke flow with a non-demo account. Test restricted matter/document
-access with two users, signed R2 upload/download, notification delivery,
+access with two users, signed Supabase upload/download, notification delivery,
 backup restore rehearsal and rollback before production approval. Never paste
 these credentials into the repository or frontend variables.

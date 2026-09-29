@@ -128,10 +128,10 @@ Nếu sử dụng ORM khác phải giải thích lý do trong ADR.
 
 ## File Storage
 
-Cloudflare R2 qua S3-compatible API.
+Supabase Storage private bucket; Cloudflare R2 là adapter thay thế khi cần mở rộng.
 
-- R2 là object storage mặc định duy nhất cho V1.
-- API chỉ tạo presigned URL sau authorization và audit; browser không nhận R2 secret.
+- Supabase Storage là object storage mặc định cho V1.
+- API chỉ tạo signed URL sau authorization và audit; browser không nhận service-role key hay storage secret.
 
 Không lưu toàn bộ binary document trực tiếp trong PostgreSQL.
 
@@ -1811,7 +1811,7 @@ Theo dõi:
 - Disk.
 - Supabase PostgreSQL và connection pool usage.
 - Vercel Function duration/error rate và Vercel Queue delivery/retry.
-- Cloudflare R2 storage, access error và egress.
+- Supabase Storage quota, access error và egress.
 - Backup status.
 
 ---
@@ -2421,7 +2421,7 @@ Build:
 - Supabase PostgreSQL.
 - Prisma.
 - Vercel Queues.
-- Cloudflare R2.
+- Supabase Storage.
 - Environment config.
 - Logging.
 - Health endpoint.
@@ -2431,7 +2431,7 @@ Exit criteria:
 ```text
 web và API deploy preview trên Vercel
 Supabase PostgreSQL kết nối qua Prisma pooler
-Cloudflare R2 bucket private sẵn sàng
+Supabase Storage bucket private sẵn sàng
 Vercel Queues có consumer smoke test
 CI passing
 ```

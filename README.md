@@ -7,7 +7,7 @@ LPMS is a matter-centric internal web application for legal-practice operations.
 - `apps/web`: Next.js App Router frontend on port 3000
 - `apps/api`: NestJS REST API on port 3001 (`/api/v1`)
 - Supabase PostgreSQL 16 via Prisma
-- Cloudflare R2 for private documents
+- Supabase Storage for private documents (Cloudflare R2 remains an optional adapter)
 - Vercel Queues for asynchronous jobs
 
 ## Local setup
@@ -24,7 +24,7 @@ For Prisma mode also verify `/api/v1/health/ready`. Queue deployment requires
 `QUEUE_PROCESSOR_URL` and `QUEUE_INTERNAL_SECRET` on both Vercel and the API.
 
 Production deploys `apps/web` and the `apps/api` Vercel serverless entrypoint,
-uses Supabase PostgreSQL, Cloudflare R2, and Vercel Queues. No production data
+uses Supabase PostgreSQL, Supabase Storage, and Vercel Queues. No production data
 or credentials belong in this repository. The web project also needs
 `CRON_SECRET` for the daily deadline-reminder producer.
 

@@ -11,16 +11,23 @@ if (!['staging', 'production'].includes(environment)) {
 }
 
 requireValue('PERSISTENCE_MODE', 'prisma');
-requireValue('STORAGE_MODE', 'r2');
+requireOneOf('STORAGE_MODE', ['supabase', 'r2']);
 requireValue('DATABASE_URL');
 requireValue('DIRECT_URL');
 requireValue('JWT_ACCESS_SECRET', undefined, 32);
 requireValue('JWT_REFRESH_SECRET', undefined, 32);
 requireValue('AUTH_ENCRYPTION_KEY', undefined, 32);
-requireValue('R2_ACCOUNT_ID');
-requireValue('R2_BUCKET');
-requireValue('R2_ACCESS_KEY_ID');
-requireValue('R2_SECRET_ACCESS_KEY');
+if (process.env.STORAGE_MODE?.trim() === 'supabase') {
+  requireValue('SUPABASE_URL');
+  requireValue('SUPABASE_SERVICE_ROLE_KEY', undefined, 32);
+  requireValue('SUPABASE_STORAGE_BUCKET');
+  validateHttpsUrl('SUPABASE_URL');
+} else if (process.env.STORAGE_MODE?.trim() === 'r2') {
+  requireValue('R2_ACCOUNT_ID');
+  requireValue('R2_BUCKET');
+  requireValue('R2_ACCESS_KEY_ID');
+  requireValue('R2_SECRET_ACCESS_KEY');
+}
 requireValue('QUEUE_PROCESSOR_URL');
 requireValue('QUEUE_INTERNAL_SECRET', undefined, 32);
 requireValue('CRON_SECRET', undefined, 32);
@@ -54,6 +61,15 @@ function requireValue(name, expected, minimumLength) {
     errors.push(`${name} must be at least ${minimumLength} characters.`);
   if (/replace-with|placeholder|example\.com/i.test(value))
     errors.push(`${name} still contains a placeholder value.`);
+}
+
+function requireOneOf(name, allowed) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    errors.push(`${name} is missing.`);
+    return;
+  }
+  if (!allowed.includes(value)) errors.push(`${name} must be one of: ${allowed.join(', ')}.`);
 }
 
 function validatePostgresUrl(name) {

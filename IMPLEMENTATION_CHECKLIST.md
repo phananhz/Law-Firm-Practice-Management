@@ -1,6 +1,6 @@
 # LPMS — Implementation Checklist
 
-`require.md` là nguồn yêu cầu chính; ADR-006 chốt Vercel + Supabase + Cloudflare. File này là bảng bàn giao để nhiều người/agent có thể triển khai song song mà không chồng chéo.
+`require.md` là nguồn yêu cầu chính; ADR-006 và ADR-007 chốt Vercel + Supabase, với Cloudflare cho lớp edge tùy chọn. File này là bảng bàn giao để nhiều người/agent có thể triển khai song song mà không chồng chéo.
 
 ## Quy ước trạng thái
 
@@ -28,7 +28,8 @@
 ## Môi trường còn thiếu
 
 - [!] Tạo Supabase project development/staging/production độc lập (cần tài khoản/credential ngoài workspace).
-- [!] Tạo Cloudflare R2 private bucket và scoped S3 API token (cần tài khoản/credential ngoài workspace).
+- [x] Tạo Supabase Storage private bucket `lpms-documents`.
+- [!] Thêm Supabase service-role key vào Vercel API và chạy live storage smoke test.
 - [!] Cấu hình Vercel Environment Variables cho từng môi trường (cần quyền project ngoài workspace).
 - [~] Tạo migration đầu tiên và chạy qua direct/session connection, không qua request production (migration đã có; Supabase credentials còn thiếu).
 - [~] Cấu hình Vercel Queue topic/consumer và smoke test (consumer/trigger/idempotency đã có; live smoke còn chờ deployment).

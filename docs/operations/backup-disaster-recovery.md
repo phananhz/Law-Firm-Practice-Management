@@ -4,8 +4,8 @@ LPMS keeps PostgreSQL and document objects in separate recovery planes:
 
 - Supabase PostgreSQL: managed point-in-time recovery is the primary backup;
   scheduled logical dumps are the independent recovery copy.
-- Cloudflare R2: the bucket remains private; object versioning and lifecycle
-  retention must be enabled in the Cloudflare dashboard for production.
+- Supabase Storage: the bucket remains private; a scheduled object inventory
+  and encrypted export provide an independent recovery copy for production.
 
 ## Required objectives
 
@@ -39,8 +39,8 @@ workspace or commit them.
    disposable demo database.
 4. Set `PERSISTENCE_MODE=prisma`, verify `GET /api/v1/health/ready`, then run
    auth, organization, client, matter, task, document and queue smoke tests.
-5. Record duration, row-count checks and any missing R2 objects in the UAT
+5. Record duration, row-count checks and any missing Storage objects in the UAT
    evidence log.
 
 This procedure is documented now; a real restore is intentionally blocked until
-Supabase and R2 staging credentials are supplied.
+Supabase database and Storage staging credentials are supplied.

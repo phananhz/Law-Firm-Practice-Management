@@ -38,10 +38,10 @@ Hệ thống Legal Practice Management System (LPMS) quản lý thông tin pháp
    - Bắt buộc TLS 1.3 / HTTPS trên toàn bộ môi trường Production và Staging.
    - HSTS (HTTP Strict Transport Security) được kích hoạt qua reverse proxy.
 2. **Data at Rest:**
-   - Supabase PostgreSQL encryption at rest và Cloudflare R2 server-side encryption.
+   - Supabase PostgreSQL và Supabase Storage encryption at rest.
    - Các trường dữ liệu siêu nhạy cảm (e.g. số CMND/CCCD, Hộ chiếu, ghi chú đặc biệt) được mã hóa cấp ứng dụng (Application-level encryption) bằng AES-GCM khi cần.
 3. **Secret Management:**
-   - Tuyệt đối không commit Supabase DB credentials, JWT secrets, R2 keys hay API keys vào Git repository.
+   - Tuyệt đối không commit Supabase DB credentials, service-role key, JWT secrets, R2 keys hay API keys vào Git repository.
    - Mọi cấu hình nhạy cảm được nạp qua Vercel Environment Variables. Cung cấp file `.env.example` với giá trị giả lập.
 
 ---

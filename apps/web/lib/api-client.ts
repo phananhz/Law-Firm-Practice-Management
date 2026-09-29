@@ -63,6 +63,7 @@ import type {
   DocumentItem,
   DocumentActivity,
   SignedUrlResponse,
+  SignedUploadUrlResponse,
   DocumentFilterParams,
   NotificationItem,
   SearchResultSet,
@@ -3453,6 +3454,25 @@ async function handleMockRequest<T>(endpoint: string, options: RequestInit): Pro
   }
 
   // Documents
+  if (endpoint.startsWith('/documents/') && endpoint.endsWith('/signed-upload')) {
+    const docId = endpoint.split('/')[2];
+    const doc = mockDocuments.find((document) => document.id === docId);
+    if (!doc) throw new ApiError('Không tìm thấy tài liệu', 'DOCUMENT_NOT_FOUND', 404);
+    const payload = options.body ? JSON.parse(options.body as string) : {};
+    return {
+      documentId: doc.id,
+      storageKey: doc.storageKey,
+      uploadUrl: `/mock-storage/upload/${encodeURIComponent(doc.storageKey)}`,
+      method: 'PUT',
+      requiredHeaders: {
+        'content-type': payload.mimeType || doc.mimeType || 'application/octet-stream',
+      },
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      expiresInSeconds: 900,
+      storageProvider: 'mock',
+    } satisfies SignedUploadUrlResponse as T;
+  }
+
   if (endpoint.startsWith('/documents/') && endpoint.endsWith('/activities')) {
     const docId = endpoint.split('/')[2];
     const activities = mockDocumentActivities.filter((a) => a.documentId === docId);
@@ -4358,6 +4378,12 @@ export const documentApi = {
     request<SignedUrlResponse>(`/documents/${id}/signed-download`, {
       method: 'POST',
       body: JSON.stringify({ versionNumber }),
+    }),
+
+  requestSignedUploadUrl: (id: string, mimeType: string) =>
+    request<SignedUploadUrlResponse>(`/documents/${id}/signed-upload`, {
+      method: 'POST',
+      body: JSON.stringify({ mimeType }),
     }),
 
   getDocumentActivities: (id: string) => request<DocumentActivity[]>(`/documents/${id}/activities`),

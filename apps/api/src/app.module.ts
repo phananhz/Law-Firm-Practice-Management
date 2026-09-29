@@ -28,7 +28,22 @@ import { CalendarModule } from './modules/calendar/calendar.module';
           otherwise: Joi.string().min(32).optional(),
         }),
         PERSISTENCE_MODE: Joi.string().valid('mock', 'prisma').default('mock'),
-        STORAGE_MODE: Joi.string().valid('mock', 'r2').default('mock'),
+        STORAGE_MODE: Joi.string().valid('mock', 'r2', 'supabase').default('mock'),
+        SUPABASE_URL: Joi.when('STORAGE_MODE', {
+          is: 'supabase',
+          then: Joi.string().uri().required(),
+          otherwise: Joi.string().uri().optional(),
+        }),
+        SUPABASE_SERVICE_ROLE_KEY: Joi.when('STORAGE_MODE', {
+          is: 'supabase',
+          then: Joi.string().min(32).required(),
+          otherwise: Joi.string().min(32).optional(),
+        }),
+        SUPABASE_STORAGE_BUCKET: Joi.when('STORAGE_MODE', {
+          is: 'supabase',
+          then: Joi.string().min(3).required(),
+          otherwise: Joi.string().min(3).optional(),
+        }),
         QUEUE_INTERNAL_SECRET: Joi.when('NODE_ENV', {
           is: 'production',
           then: Joi.string().min(32).required(),

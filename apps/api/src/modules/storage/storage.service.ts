@@ -1,8 +1,9 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createHmac, createHash } from 'node:crypto';
 
-export type StorageMode = 'mock' | 'r2';
+export type StorageMode = 'mock' | 'r2' | 'supabase';
 
 export type SignedStorageUrl = {
   provider: StorageMode;
@@ -19,19 +20,23 @@ type UploadInput = {
 };
 
 /**
- * Cloudflare R2 uses the AWS Signature V4 protocol. Keeping the signer in the
- * API means the browser only ever receives a short-lived URL and never sees an
- * R2 secret. Mock mode deliberately returns a local contract URL.
+ * Produces short-lived storage URLs without exposing provider credentials to
+ * the browser. Mock, Cloudflare R2 and Supabase Storage share one contract so
+ * callers do not need provider-specific branching.
  */
 @Injectable()
-export class R2StorageService {
+export class StorageService {
+  private supabaseClient?: SupabaseClient;
+
   constructor(private readonly config: ConfigService) {}
 
   get mode(): StorageMode {
-    return this.config.get<string>('STORAGE_MODE') === 'r2' ? 'r2' : 'mock';
+    const configured = this.config.get<string>('STORAGE_MODE');
+    if (configured === 'r2' || configured === 'supabase') return configured;
+    return 'mock';
   }
 
-  createDownloadUrl(key: string, expiresInSeconds = 900): SignedStorageUrl {
+  async createDownloadUrl(key: string, expiresInSeconds = 900): Promise<SignedStorageUrl> {
     if (this.mode === 'mock') {
       return {
         provider: 'mock',
@@ -41,10 +46,13 @@ export class R2StorageService {
         expiresInSeconds,
       };
     }
-    return this.sign('GET', key, expiresInSeconds);
+    if (this.mode === 'supabase') {
+      return this.createSupabaseDownloadUrl(key, expiresInSeconds);
+    }
+    return this.signR2('GET', key, expiresInSeconds);
   }
 
-  createUploadUrl(input: UploadInput, expiresInSeconds = 900): SignedStorageUrl {
+  async createUploadUrl(input: UploadInput, expiresInSeconds = 900): Promise<SignedStorageUrl> {
     if (this.mode === 'mock') {
       return {
         provider: 'mock',
@@ -55,22 +63,82 @@ export class R2StorageService {
         requiredHeaders: { 'content-type': input.mimeType },
       };
     }
+    if (this.mode === 'supabase') {
+      return this.createSupabaseUploadUrl(input);
+    }
     return {
-      ...this.sign('PUT', input.key, expiresInSeconds),
+      ...this.signR2('PUT', input.key, expiresInSeconds),
       requiredHeaders: { 'content-type': input.mimeType },
     };
   }
 
-  private sign(method: 'GET' | 'PUT', key: string, requestedExpires: number): SignedStorageUrl {
+  private async createSupabaseDownloadUrl(
+    key: string,
+    requestedExpires: number,
+  ): Promise<SignedStorageUrl> {
+    const expiresInSeconds = Math.min(Math.max(Math.trunc(requestedExpires), 1), 604800);
+    const { client, bucket } = this.getSupabaseStorage();
+    const { data, error } = await client.storage
+      .from(bucket)
+      .createSignedUrl(key, expiresInSeconds);
+    if (error || !data?.signedUrl) this.throwProviderUnavailable('Supabase Storage', error);
+    return {
+      provider: 'supabase',
+      method: 'GET',
+      url: data.signedUrl,
+      expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
+      expiresInSeconds,
+    };
+  }
+
+  private async createSupabaseUploadUrl(input: UploadInput): Promise<SignedStorageUrl> {
+    const { client, bucket } = this.getSupabaseStorage();
+    const { data, error } = await client.storage
+      .from(bucket)
+      .createSignedUploadUrl(input.key, { upsert: false });
+    if (error || !data?.signedUrl) this.throwProviderUnavailable('Supabase Storage', error);
+
+    // Supabase signed upload URLs currently have a fixed two-hour lifetime.
+    const expiresInSeconds = 7200;
+    return {
+      provider: 'supabase',
+      method: 'PUT',
+      url: data.signedUrl,
+      expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
+      expiresInSeconds,
+      requiredHeaders: { 'content-type': input.mimeType },
+    };
+  }
+
+  private getSupabaseStorage(): { client: SupabaseClient; bucket: string } {
+    const url = this.config.get<string>('SUPABASE_URL');
+    const serviceRoleKey = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET');
+    if (!url || !serviceRoleKey || !bucket) {
+      this.throwProviderUnavailable('Supabase Storage');
+    }
+    this.supabaseClient ??= createClient(url, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
+    return { client: this.supabaseClient, bucket };
+  }
+
+  private throwProviderUnavailable(provider: string, cause?: unknown): never {
+    const reason = cause instanceof Error ? cause.message : undefined;
+    throw new ServiceUnavailableException({
+      code: 'STORAGE_UNAVAILABLE',
+      message: `${provider} chưa sẵn sàng.`,
+      ...(process.env.NODE_ENV === 'development' && reason ? { reason } : {}),
+    });
+  }
+
+  private signR2(method: 'GET' | 'PUT', key: string, requestedExpires: number): SignedStorageUrl {
     const accountId = this.config.get<string>('R2_ACCOUNT_ID');
     const bucket = this.config.get<string>('R2_BUCKET');
     const accessKeyId = this.config.get<string>('R2_ACCESS_KEY_ID');
     const secretAccessKey = this.config.get<string>('R2_SECRET_ACCESS_KEY');
     if (!accountId || !bucket || !accessKeyId || !secretAccessKey) {
-      throw new ServiceUnavailableException({
-        code: 'STORAGE_UNAVAILABLE',
-        message: 'Cloudflare R2 chưa được cấu hình.',
-      });
+      this.throwProviderUnavailable('Cloudflare R2');
     }
 
     const expiresInSeconds = Math.min(Math.max(Math.trunc(requestedExpires), 1), 604800);

@@ -16,7 +16,7 @@ import { randomUUID } from 'node:crypto';
 import type { RequestWithContext } from '../../common/middleware/request-context.middleware';
 import { AccessGuard } from '../auth/access.guard';
 import { RequireRoles, RolesGuard } from '../auth/roles.guard';
-import { R2StorageService } from '../storage/r2-storage.service';
+import { StorageService } from '../storage/storage.service';
 import { OPERATIONS_REPOSITORY } from './operations.repository';
 import type { OperationsRepository } from './operations.repository';
 
@@ -27,7 +27,7 @@ type BodyRecord = Record<string, unknown>;
 export class OperationsController {
   constructor(
     @Inject(OPERATIONS_REPOSITORY) private readonly repository: OperationsRepository,
-    private readonly storage: R2StorageService,
+    private readonly storage: StorageService,
   ) {}
 
   @Get('conflict-checks') async conflicts(@Req() request: RequestWithContext) {
@@ -528,7 +528,7 @@ export class OperationsController {
       typeof document.storageKey === 'string'
         ? document.storageKey
         : `mock/${id}/v${document.currentVersion || 1}`;
-    const signed = this.storage.createDownloadUrl(storageKey);
+    const signed = await this.storage.createDownloadUrl(storageKey);
     return this.envelope(
       {
         documentId: id,
@@ -555,8 +555,11 @@ export class OperationsController {
     await this.repository.assertDocumentPermission(id, 'UPLOAD_VERSION', this.context(request));
     const document = await this.repository.find('document', id, this.context(request));
     const mimeType = typeof body.mimeType === 'string' ? body.mimeType : 'application/octet-stream';
-    const storageKey = `${document.matterId}/${id}/${randomUUID()}`;
-    const signed = this.storage.createUploadUrl({ key: storageKey, mimeType });
+    const storageKey =
+      typeof document.storageKey === 'string'
+        ? document.storageKey.replace(/^s3:\/\/[^/]+\//, '')
+        : `${document.matterId}/${id}/${randomUUID()}`;
+    const signed = await this.storage.createUploadUrl({ key: storageKey, mimeType });
     return this.envelope(
       {
         documentId: id,
